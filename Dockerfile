@@ -1,6 +1,5 @@
 ARG BASE_TAG=5.3.0
 
-FROM gcr.io/kaggle-images/python-tensorflow-whl:1.13.1-py36-2 as tensorflow_whl
 FROM continuumio/anaconda3:${BASE_TAG}
 
 ADD clean-layer.sh  /tmp/clean-layer.sh
@@ -39,10 +38,7 @@ RUN pip install seaborn python-dateutil dask && \
     make -j $(nproc) && make install && \
     /tmp/clean-layer.sh
 
-# Install tensorflow from a pre-built wheel
-COPY --from=tensorflow_whl /tmp/tensorflow_cpu/*.whl /tmp/tensorflow_cpu/
-RUN pip install /tmp/tensorflow_cpu/tensorflow*.whl && \
-    rm -rf /tmp/tensorflow_cpu && \
+RUN pip install tensorflow==2.0.0-beta1 && \
     /tmp/clean-layer.sh
 
 RUN apt-get install -y libfreetype6-dev && \
