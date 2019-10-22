@@ -1,7 +1,7 @@
 ARG BASE_TAG=staging
 
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04 AS nvidia
-FROM gcr.io/kaggle-images/python-tensorflow-whl:1.14.0-py36 as tensorflow_whl
+FROM gcr.io/kaggle-images/python-tensorflow-whl:2.0.0-py36 as tensorflow_whl
 FROM gcr.io/kaggle-images/python:${BASE_TAG}
 
 ADD clean-layer.sh  /tmp/clean-layer.sh
@@ -44,8 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     /tmp/clean-layer.sh
 
-# Reinstall packages with a separate version for GPU support
-# Tensorflow
+# Reinstall packages with a separate version for GPU support.
 COPY --from=tensorflow_whl /tmp/tensorflow_gpu/*.whl /tmp/tensorflow_gpu/
 RUN pip uninstall -y tensorflow && \
     pip install /tmp/tensorflow_gpu/tensorflow*.whl && \
@@ -61,10 +60,6 @@ RUN pip uninstall -y tensorflow && \
 RUN pip install pycuda && \
     pip install cupy-cuda100 && \
     pip install pynvrtc && \
-    /tmp/clean-layer.sh
-
-RUN conda install -c defaults -c nvidia -c rapidsai -c pytorch -c numba -c conda-forge numba=0.44.1 cudf=0.8 cuml=0.8 pandas python=3.6 cudatoolkit=10.0 &&\
-    conda clean -a -y &&\
     /tmp/clean-layer.sh
 
 # Re-add TensorBoard Jupyter extension patch
