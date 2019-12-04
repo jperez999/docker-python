@@ -1,18 +1,8 @@
 ARG BASE_TAG=2019.03
-ARG TENSORFLOW_VERSION=2.0.0
+ARG TENSORFLOW_VERSION=2.1.0
 
-FROM gcr.io/kaggle-images/python-tensorflow-whl:${TENSORFLOW_VERSION}-py36 as tensorflow_whl
+FROM gcr.io/kaggle-images/python-tensorflow-whl:${TENSORFLOW_VERSION}-rc0-py36 as tensorflow_whl
 FROM continuumio/anaconda3:${BASE_TAG}
-
-ARG GIT_COMMIT=unknown
-ARG BUILD_DATE=unknown
-
-LABEL git-commit=$GIT_COMMIT
-LABEL build-date=$BUILD_DATE
-LABEL tensorflow-version=$TENSORFLOW_VERSION
-
-# Correlate current release with the git hash inside the kernel editor by running `!cat /etc/git_commit`.
-RUN echo "$GIT_COMMIT" > /etc/git_commit && echo "$BUILD_DATE" > /etc/build_date
 
 ADD clean-layer.sh  /tmp/clean-layer.sh
 ADD patches/nbconvert-extensions.tpl /opt/kaggle/nbconvert-extensions.tpl
@@ -126,7 +116,8 @@ ENV LD_LIBRARY_PATH=/opt/conda/lib
 RUN apt-get -y install zlib1g-dev liblcms2-dev libwebp-dev libgeos-dev && \
     pip install matplotlib && \
     pip install pyshp && \
-    pip install pyproj && \
+    # b/144569992 pyproj 2.4.1 is failing to install because of missing METADATA file.
+    pip install pyproj==2.4.0 && \
     conda install basemap && \
     # sasl is apparently an ibis dependency
     apt-get -y install libsasl2-dev && \
@@ -140,8 +131,8 @@ RUN apt-get -y install zlib1g-dev liblcms2-dev libwebp-dev libgeos-dev && \
     pip install cartopy && \
     # MXNet
     pip install mxnet && \
-    # b/140423854 v1.17 prints annoying deprecation warning messages with TensorFlow 1.14.0. Remove once we upgrade to TF 1.14.1 or 2.x
-    pip install numpy==1.16.4 && \
+    # b/145358669 remove --upgrade once we upgrade base image which will include numpy >= 1.17
+    pip install --upgrade numpy && \
     pip install gluonnlp && \
     pip install gluoncv && \
     # h2o (requires java)
@@ -186,14 +177,7 @@ RUN pip install scipy && \
     apt-get install -y pandoc && \
     pip install git+git://github.com/scikit-learn-contrib/py-earth.git@issue191 && \
     pip install essentia && \
-    # PyTorch
-    export CXXFLAGS="-std=c++11" && \
-    export CFLAGS="-std=c99" && \
-    conda install -y pytorch-cpu torchvision-cpu -c pytorch && \
-    # PyTorch Audio
-    apt-get install -y sox libsox-dev libsox-fmt-all && \
-    pip install cffi && \
-    pip install git+git://github.com/pytorch/audio.git && \
+    conda install -y pytorch torchvision torchaudio cpuonly -c pytorch && \
     /tmp/clean-layer.sh
 
 # vtk with dependencies
@@ -338,8 +322,7 @@ RUN pip install --upgrade cython && \
     # pip install ktext && \
     pip install fasttext && \
     apt-get install -y libhunspell-dev && pip install hunspell && \
-    # b/138723119: annoy's latest version 1.16 was failing
-    pip install annoy==1.15.2 && \
+    pip install annoy && \
     # Need to use CountEncoder from category_encoders before it's officially released
     pip install git+https://github.com/scikit-learn-contrib/categorical-encoding.git && \
     pip install google-cloud-automl && \
@@ -398,8 +381,9 @@ RUN pip install bcolz && \
     pip install notebook==5.5.0 && \
     pip install olefile && \
     pip install opencv-python && \
-    # b/124184516: tsfresh is not yet compatible with pandas 0.24.0
-    pip install pandas==0.23.4 && \
+    # tsfresh doesn't work with pandas 0.24, requires >= 0.25: https://github.com/blue-yonder/tsfresh/blob/0ef9123d68e3544ef0217caf83f63f93ad837a61/requirements.txt#L3
+    # b/145358669 remove --upgrade once we upgrade base image which will include pandas >= 0.25 
+    pip install --upgrade pandas && \
     pip install pandas_summary && \
     pip install pandocfilters && \
     pip install pexpect && \
@@ -424,9 +408,7 @@ RUN pip install bcolz && \
     pip install wcwidth && \
     pip install webencodings && \
     pip install widgetsnbextension && \
-    # Latest version of pyarrow conflicts with pandas
-    # https://github.com/pandas-dev/pandas/issues/23053
-    pip install pyarrow==0.10.0 && \
+    pip install pyarrow && \
     pip install feather-format && \
     pip install fastai && \
     pip install torchtext && \
@@ -477,8 +459,9 @@ RUN pip install flashtext && \
     pip install ggplot && \
     pip install cesium && \
     pip install rgf_python && \
-    # b/124184516: latest version forces the use of incompatible pandas>0.24
+    # b/145404107: latest version force specific version of numpy and torch.
     pip install pytext-nlp==0.1.2 && \
+    pip install pytext-nlp && \
     pip install tsfresh && \
     pip install pymagnitude && \
     pip install pykalman && \
@@ -488,7 +471,8 @@ RUN pip install flashtext && \
     pip install plotly_express && \
     pip install albumentations && \
     pip install catalyst && \
-    pip install rtree && \
+    # b/145133331: latest version is causing issue with gcloud.
+    pip install rtree==0.8.3 && \
     pip install osmnx && \
     apt-get -y install libspatialindex-dev && \
     pip install pytorch-ignite && \
@@ -548,11 +532,25 @@ ADD patches/sitecustomize.py /root/.local/lib/python3.6/site-packages/sitecustom
 
 # TensorBoard Jupyter extension. Should be replaced with TensorBoard's provided magic once we have
 # worker tunneling support in place.
-ENV JUPYTER_CONFIG_DIR "/root/.jupyter/"
-RUN pip install jupyter_tensorboard && \
-    jupyter serverextension enable jupyter_tensorboard && \
-    jupyter tensorboard enable
-ADD patches/tensorboard/notebook.py /opt/conda/lib/python3.6/site-packages/tensorboard/notebook.py
+# b/139212522 re-enable TensorBoard once solution for slowdown is implemented.
+# ENV JUPYTER_CONFIG_DIR "/root/.jupyter/"
+# RUN pip install jupyter_tensorboard && \
+#     jupyter serverextension enable jupyter_tensorboard && \
+#     jupyter tensorboard enable
+# ADD patches/tensorboard/notebook.py /opt/conda/lib/python3.6/site-packages/tensorboard/notebook.py
 
 # Set backend for matplotlib
 ENV MPLBACKEND "agg"
+
+# We need to redefine TENSORFLOW_VERSION here to get the default ARG value defined above the FROM instruction.
+# See: https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
+ARG TENSORFLOW_VERSION
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+
+LABEL git-commit=$GIT_COMMIT
+LABEL build-date=$BUILD_DATE
+LABEL tensorflow-version=$TENSORFLOW_VERSION
+
+# Correlate current release with the git hash inside the kernel editor by running `!cat /etc/git_commit`.
+RUN echo "$GIT_COMMIT" > /etc/git_commit && echo "$BUILD_DATE" > /etc/build_date

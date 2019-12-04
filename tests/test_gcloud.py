@@ -9,7 +9,10 @@ class TestGcloud(unittest.TestCase):
                 '--version',
             ],
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
-        self.assertTrue(result.returncode == 0)
-        self.assertTrue(b'Google Cloud SDK' in result.stdout)
+        print("gloud version: ", result)
+
+        self.assertEqual(0, result.returncode)
+        self.assertIn(b'Google Cloud SDK', result.stdout)

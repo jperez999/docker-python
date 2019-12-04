@@ -1,7 +1,7 @@
 ARG BASE_TAG=staging
 
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04 AS nvidia
-FROM gcr.io/kaggle-images/python-tensorflow-whl:2.0.0-py36 as tensorflow_whl
+FROM gcr.io/kaggle-images/python-tensorflow-whl:2.1.0-rc0-py36 as tensorflow_whl
 FROM gcr.io/kaggle-images/python:${BASE_TAG}
 
 ADD clean-layer.sh  /tmp/clean-layer.sh
@@ -49,8 +49,8 @@ COPY --from=tensorflow_whl /tmp/tensorflow_gpu/*.whl /tmp/tensorflow_gpu/
 RUN pip uninstall -y tensorflow && \
     pip install /tmp/tensorflow_gpu/tensorflow*.whl && \
     rm -rf /tmp/tensorflow_gpu && \
-    conda remove --force -y pytorch-cpu torchvision-cpu && \
-    conda install -y pytorch torchvision cudatoolkit=10.0 -c pytorch && \
+    conda remove --force -y pytorch torchvision torchaudio cpuonly && \
+    conda install -y pytorch torchvision torchaudio cudatoolkit=10.0 -c pytorch && \
     pip uninstall -y mxnet && \
     # b/126259508 --no-deps prevents numpy from being downgraded.
     pip install --no-deps mxnet-cu100 && \
@@ -63,4 +63,5 @@ RUN pip install pycuda && \
     /tmp/clean-layer.sh
 
 # Re-add TensorBoard Jupyter extension patch
-ADD patches/tensorboard/notebook.py /opt/conda/lib/python3.6/site-packages/tensorboard/notebook.py
+# b/139212522 re-enable TensorBoard once solution for slowdown is implemented.
+# ADD patches/tensorboard/notebook.py /opt/conda/lib/python3.6/site-packages/tensorboard/notebook.py
