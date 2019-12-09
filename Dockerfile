@@ -457,7 +457,8 @@ RUN pip install flashtext && \
     pip install jieba  && \
     pip install git+https://github.com/SauceCat/PDPbox && \
     pip install ggplot && \
-    pip install cesium && \
+    # b/145856222 cesium 0.9.10 forces a downgrade of scikit-learn.
+    pip install cesium==0.9.9 && \
     pip install rgf_python && \
     # b/145404107: latest version force specific version of numpy and torch.
     pip install pytext-nlp==0.1.2 && \
@@ -473,7 +474,8 @@ RUN pip install flashtext && \
     pip install catalyst && \
     # b/145133331: latest version is causing issue with gcloud.
     pip install rtree==0.8.3 && \
-    pip install osmnx && \
+    # b/145133331 osmnx 0.11 requires rtree >= 0.9 which is causing issue with gcloud.
+    pip install osmnx==0.10 && \
     apt-get -y install libspatialindex-dev && \
     pip install pytorch-ignite && \
     pip install qgrid && \
